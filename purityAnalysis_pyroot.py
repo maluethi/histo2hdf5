@@ -1,57 +1,95 @@
+import tables as tbl
+import sys
+import getopt
 
 import ROOT
+
 import numpy as np
 import matplotlib.cm as cm
-import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 
 
-def convertHisto(file, histoname):
+# @profile
+# noinspection PyPep8Naming
+def readHisto(filename, histoname):
+    # reads an TH2 histogram from file and returns it as an numpy array.
+    # x-axis: time
+    # y-axis: wires
 
-# x-axis: time
-# y-axis: wires
-
-    histo = file.Get(histoname)
+    histo = filename.Get(histoname)
     print "reading " + histoname
 
     NBinsX = histo.GetNbinsX()
     NBinsY = histo.GetNbinsY()
-
-    array = np.zeros([NBinsX, NBinsY])
+    binHisto = 0
+    array = np.zeros([NBinsX, NBinsY], dtype=int)
     for wires in range(NBinsY):
         for ticks in range(NBinsX):
-            bin = histo.GetBin(ticks, wires)
-            array[ticks, wires] = histo.GetBinContent(bin)
+            # bin = histo.GetBin(ticks, wires)
+            array[ticks, wires] = histo.GetBinContent(binHisto)
+            binHisto += 1
 
     return array
 
 
+def plotEvent(array):
+    # simple plotting to verify data
+    im = plt.imshow(array, interpolation='bilinear', cmap=cm.hsv,
+                    origin='lower',
+                    vmax=abs(array).max(), vmin=-abs(array).max() / 0.7, aspect=0.01)
+    plt.show()
 
 
-prefixInduction = "Ind_"
-prefixCollection = "Col_"
+# noinspection PyPep8Naming
+def main(argv):
+    prefixInduction = "Ind_"
+    prefixCollection = "Col_"
 
-f = ROOT.TFile(filename)
+    RunNumber = ''
+    try:
+        opts, args = getopt.getopt(argv, "hr:", ["ifile="])
+    except getopt.GetoptError:
+        print 'test.py -r <RunNumber>'
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print 'test.py -r <RunNumber>'
+            sys.exit()
+        elif opt in "-r":
+            RunNumber = str(arg)
 
-filename = './data/Run_00050010.root'
-# Convert a TTree in a ROOT file into a NumPy structured array
+    print "Converting Run " + RunNumber
 
-# x-axis: time
-# y-axis: wires
-histoname = prefixCollection + str(2)
+    RunNumber = RunNumber.zfill(8)
 
-array = convertHisto(f,prefixCollection+"0")
+    filename = 'Run_' + RunNumber
+    RunSize = 200
+
+    DataDirectory = './data/'
+    RootFilename = DataDirectory + filename + '.root'
+    H5Filename = DataDirectory + filename + '.h5'
+
+    f = ROOT.TFile(RootFilename)
+
+    h5file = tbl.open_file(H5Filename, mode="w", title=RunNumber)
+    info = h5file.create_group(h5file.root, "info", "Run Information")
+    data = h5file.create_group(h5file.root, "data", "Stored Data")
+
+    # Convert a TTree in a ROOT file into a NumPy structured array
+
+    # x-axis: time
+    # y-axis: wires
+    for i in range(RunSize):
+        event = h5file.create_group(data, "event" + str(i), "Event " + str(i))
+        collection = readHisto(f, prefixCollection + str(i))
+        induction = readHisto(f, prefixInduction + str(i))
+        h5file.create_array(event, 'collection', collection, "Collection Plane Data")
+        h5file.create_array(event, 'induction', induction, "Induction Plane Data")
+
+    h5file.close()
 
 
-
-
-
-#plotting
-im = plt.imshow(array, interpolation='bilinear', cmap=cm.hsv,
-                origin='lower',
-                vmax=abs(array).max(), vmin=-abs(array).max()/0.7 ,aspect=0.01)
-plt.show()
-
-
+if __name__ == "__main__":
+    main(sys.argv[1:])
 
 
