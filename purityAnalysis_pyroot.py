@@ -25,9 +25,9 @@ def readHisto(filename, histoname):
     array = np.zeros([NBinsX, NBinsY], dtype=int)
     for wires in range(NBinsY):
         for ticks in range(NBinsX):
-            # bin = histo.GetBin(ticks, wires)
+            binHisto = histo.GetBin(ticks, wires)
             array[ticks, wires] = histo.GetBinContent(binHisto)
-            binHisto += 1
+            #binHisto += 1
 
     return array
 
@@ -45,6 +45,7 @@ def main(argv):
     prefixInduction = "Ind_"
     prefixCollection = "Col_"
 
+    # logics to detect wrong inputs
     RunNumber = ''
     try:
         opts, args = getopt.getopt(argv, "hr:", ["ifile="])
@@ -60,17 +61,18 @@ def main(argv):
 
     print "Converting Run " + RunNumber
 
+    # file names & definitions
     RunNumber = RunNumber.zfill(8)
-
     filename = 'Run_' + RunNumber
-    RunSize = 200
-
+    RunSize = 1
     DataDirectory = './data/'
     RootFilename = DataDirectory + filename + '.root'
     H5Filename = DataDirectory + filename + '.h5'
 
+
     f = ROOT.TFile(RootFilename)
 
+    # construct file structure in hdf5 file,
     h5file = tbl.open_file(H5Filename, mode="w", title=RunNumber)
     info = h5file.create_group(h5file.root, "info", "Run Information")
     data = h5file.create_group(h5file.root, "data", "Stored Data")
@@ -79,8 +81,9 @@ def main(argv):
 
     # x-axis: time
     # y-axis: wires
+    # read and write events to file
     for i in range(RunSize):
-        event = h5file.create_group(data, "event" + str(i), "Event " + str(i))
+        event = h5file.create_group(data, "event" + str(i).zfill(3), "Event " + str(i))
         collection = readHisto(f, prefixCollection + str(i))
         induction = readHisto(f, prefixInduction + str(i))
         h5file.create_array(event, 'collection', collection, "Collection Plane Data")
