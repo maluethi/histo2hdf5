@@ -64,7 +64,7 @@ def main(argv):
     # file names & definitions
     RunNumber = RunNumber.zfill(8)
     filename = 'Run_' + RunNumber
-    RunSize = 1
+    RunSize = 200
     DataDirectory = './data/'
     RootFilename = DataDirectory + filename + '.root'
     H5Filename = DataDirectory + filename + '.h5'
